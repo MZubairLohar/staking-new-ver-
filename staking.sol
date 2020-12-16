@@ -463,7 +463,7 @@ contract Staking is StakingTokenWrapper, RewardsDistributionRecipient {
     uint256 internal twelveMonthRewardPercent = 9 * 1e18;   // 9%
     uint256 internal twentyFourMonthRewardPercent = 12 * 1e18;   // 12%
     uint256 internal thirtySixMonthRewardPercent = 15 * 1e18;   // 15%
-    uint256 internal Fee = 1 * 1e18; // 1%
+    uint256 internal FeePercent = 1 * 1e18; // 1%
     
     
     // percentage calculation
@@ -479,26 +479,20 @@ contract Staking is StakingTokenWrapper, RewardsDistributionRecipient {
 
     uint256 internal rewardPercent = 1; // 1%
     
-    // // Timestamps of staking duration
+    // Timestamps of staking duration
     
-    // uint256 public constant FLAXABLE_MONTHS_DURATION   = 30 days;
-    // uint256 public constant THREE_MONTHS_DURATION   = 90 days;
-    // uint256 public constant SIX_MONTHS_DURATION     = 180 days;
-    // uint256 public constant NINE_MONTHS_DURATION     = 270 days;
-    // uint256 public constant TWELVE_MONTHS_DURATION  = 360 days;
-    // uint256 public constant TWENTYfOUR_MONTHS_DURATION  = 720 days;
-    // uint256 public constant THIRTYsIX_MONTHS_DURATION  = 1080 days;
-    
-    
-    // FOR-TESTING Timestamps of staking duration
-    uint256 public constant THREE_MONTHS_DURATION  = 1 minutes;
-    uint256 public constant SIX_MONTHS_DURATION    = 2 minutes;
-    uint256 public constant TWELVE_MONTHS_DURATION = 3 minutes;
+    uint256 public constant FLEXABLE_MONTHS_DURATION   = 5 days;
+    uint256 public constant THREE_MONTHS_DURATION   = 90 days;
+    uint256 public constant SIX_MONTHS_DURATION     = 180 days;
+    uint256 public constant NINE_MONTHS_DURATION     = 270 days;
+    uint256 public constant TWELVE_MONTHS_DURATION  = 360 days;
+    uint256 public constant TWENTYfOUR_MONTHS_DURATION  = 720 days;
+    uint256 public constant THIRTYsIX_MONTHS_DURATION  = 1080 days;
     
     uint256 internal stakingDuration = 0;
+    
     //owner 
     address owner ;
-    uint256 ownerbalance;
     
     // Amount the user has staked
     mapping(address => uint256) public userStakedTokens;
@@ -564,27 +558,30 @@ contract Staking is StakingTokenWrapper, RewardsDistributionRecipient {
     {
         __stake(msg.sender, _amount, SIX_MONTHS_DURATION);
     }
-    // function stake9m(uint256 _amount)
-    //     external
-    // {
-    //     __stake(msg.sender, _amount, NINE_MONTHS_DURATION );
-    // }
+    
+    function stake9m(uint256 _amount)
+        external
+    {
+        __stake(msg.sender, _amount, NINE_MONTHS_DURATION );
+    }
     
     function stake12m(uint256 _amount)
         external
     {
         __stake(msg.sender, _amount, TWELVE_MONTHS_DURATION);
     }
-    // function stake24m(uint256 _amount)
-    //     external
-    // {
-    //     __stake(msg.sender, _amount, TWENTYfOUR_MONTHS_DURATION);
-    // }
-    // function stake36m(uint256 _amount)
-    //     external
-    // {
-    //     __stake(msg.sender, _amount, THIRTYsIX_MONTHS_DURATION);
-    // }
+    
+    function stake24m(uint256 _amount)
+        external
+    {
+        __stake(msg.sender, _amount, TWENTYfOUR_MONTHS_DURATION);
+    }
+    
+    function stake36m(uint256 _amount)
+        external
+    {
+        __stake(msg.sender, _amount, THIRTYsIX_MONTHS_DURATION);
+    }
     
     
     function unstake() 
@@ -595,8 +592,7 @@ contract Staking is StakingTokenWrapper, RewardsDistributionRecipient {
         withdraw(balanceOf(msg.sender));
         claimReward();
         
-        withdrawStakeTokens(msg.sender, userStakedTokens[msg.sender]);
-        withdrawRewardTokens(msg.sender, userRewardsPaid[msg.sender]);
+       
         stakeStarted[msg.sender] = 0;
         stakeEnded[msg.sender] = 0;
     }
@@ -611,20 +607,24 @@ contract Staking is StakingTokenWrapper, RewardsDistributionRecipient {
             "Invalid staking amount"
         );
         require(
-         //   _period == FLAXABLE_MONTHS_DURATION ||
+            _period == FLEXABLE_MONTHS_DURATION ||
             _period == THREE_MONTHS_DURATION || 
-            _period == SIX_MONTHS_DURATION  //||
-        //    _period == NINE_MONTHS_DURATION ||
-         //   _period == TWELVE_MONTHS_DURATION||
-    //        _period == TWENTYfOUR_MONTHS_DURATION||
-      //      _period == THIRTYsIX_MONTHS_DURATION,
-      //      "Invalid staking period"
+            _period == SIX_MONTHS_DURATION  ||
+            _period == NINE_MONTHS_DURATION ||
+            _period == TWELVE_MONTHS_DURATION||
+            _period == TWENTYfOUR_MONTHS_DURATION||
+            _period == THIRTYsIX_MONTHS_DURATION,
+            "Invalid staking period"
         );
         
-        uint256 _amount1 = _addAmount * (Fee);
-        uint256 _amountPercent = _amount1 / 1e20;
-        uint256 _amount = _addAmount.sub( _amountPercent);
-        ownerbalance = ownerbalance.add( _amountPercent); 
+        uint256 _amount1 = _addAmount * FeePercent;
+        //      1e36     =    1e18    * 1e18 
+        uint256 _feeAmount = _amount1 / 1e20;
+        uint256 _amount = _addAmount.sub( _feeAmount);
+        
+        // Transfer fee to owner
+        stakingToken.transferFrom(_beneficiary, owner, _feeAmount);
+        
         
         super._stake(_beneficiary, _amount);
         stakeStarted[_beneficiary] = block.timestamp;
@@ -637,55 +637,47 @@ contract Staking is StakingTokenWrapper, RewardsDistributionRecipient {
         // e.g: (2.5% * 1e18  *  100 * 1e18) / 1e20 = 2.5 * 1e18
         uint256 _rewardAmount;
        
-      // if (_period == FLAXABLE_MONTHS_DURATION) {
-       //     _rewardAmount = (FlaxableRewardPercent * __userAmount) / 1e20;
-    //        rewards[_beneficiary] = _rewardAmount;
-      //      stakeEnded[_beneficiary] = (block.timestamp).add(FLAXABLE_MONTHS_DURATION);
-            
-        //} 
-        //else
-        if (_period == THREE_MONTHS_DURATION) {
+       if (_period == FLEXABLE_MONTHS_DURATION) {
+            _rewardAmount = (FlaxableRewardPercent * __userAmount) / 1e20;
+            rewards[_beneficiary] = _rewardAmount;
+            stakeEnded[_beneficiary] = (block.timestamp).add(FLEXABLE_MONTHS_DURATION);
+        } 
+        else if (_period == THREE_MONTHS_DURATION) {
             _rewardAmount = (threeMonthRewardPercent * __userAmount) / 1e20;
             rewards[_beneficiary] = _rewardAmount;
             stakeEnded[_beneficiary] = (block.timestamp).add(THREE_MONTHS_DURATION);
         }
        
-        // if (_period == FLAXABLE_MONTHS_DURATION) {
-        //     _rewardAmount = (FlaxableRewardPercent * __userAmount) / 1e20;
-        //     rewards[_beneficiary] = _rewardAmount;
-        //     stakeEnded[_beneficiary] = (block.timestamp).add(FLAXABLE_MONTHS_DURATION);
+        else if (_period == THREE_MONTHS_DURATION) {
+            _rewardAmount = (threeMonthRewardPercent * __userAmount) / 1e20;
+            rewards[_beneficiary] = _rewardAmount;
+            stakeEnded[_beneficiary] = (block.timestamp).add(THREE_MONTHS_DURATION);
+        } 
+        else if (_period == SIX_MONTHS_DURATION) {
+            _rewardAmount = (sixMonthRewardPercent * __userAmount) / 1e20;
+            rewards[_beneficiary] = _rewardAmount;
+            stakeEnded[_beneficiary] = (block.timestamp).add(SIX_MONTHS_DURATION);
+        } 
+        else if (_period == NINE_MONTHS_DURATION) {
+            _rewardAmount = (nineMonthRewardPercent * __userAmount) / 1e20;
+            rewards[_beneficiary] = _rewardAmount;
+            stakeEnded[_beneficiary] = (block.timestamp).add(NINE_MONTHS_DURATION);    
+        } 
+        else if (_period == TWELVE_MONTHS_DURATION) {
+            _rewardAmount = (twelveMonthRewardPercent * __userAmount) / 1e20;
+            rewards[_beneficiary] = _rewardAmount;
+            stakeEnded[_beneficiary] = (block.timestamp).add(TWELVE_MONTHS_DURATION);
             
-        // } 
-        // else if (_period == THREE_MONTHS_DURATION) {
-        //     _rewardAmount = (threeMonthRewardPercent * __userAmount) / 1e20;
-        //     rewards[_beneficiary] = _rewardAmount;
-        //     stakeEnded[_beneficiary] = (block.timestamp).add(THREE_MONTHS_DURATION);
-        // } 
-        // else if (_period == SIX_MONTHS_DURATION) {
-        //     _rewardAmount = (sixMonthRewardPercent * __userAmount) / 1e20;
-        //     rewards[_beneficiary] = _rewardAmount;
-        //     stakeEnded[_beneficiary] = (block.timestamp).add(SIX_MONTHS_DURATION);
-        // } 
-        // else if (_period == NINE_MONTHS_DURATION) {
-        //     _rewardAmount = (nineMonthRewardPercent * __userAmount) / 1e20;
-        //     rewards[_beneficiary] = _rewardAmount;
-        //     stakeEnded[_beneficiary] = (block.timestamp).add(NINE_MONTHS_DURATION);    
-        // } 
-        // else if (_period == TWELVE_MONTHS_DURATION) {
-        //     _rewardAmount = (twelveMonthRewardPercent * __userAmount) / 1e20;
-        //     rewards[_beneficiary] = _rewardAmount;
-        //     stakeEnded[_beneficiary] = (block.timestamp).add(TWELVE_MONTHS_DURATION);
+        } 
+        else if (_period == THIRTYsIX_MONTHS_DURATION) {
+            _rewardAmount = (thirtySixMonthRewardPercent * __userAmount) / 1e20;
+            rewards[_beneficiary] = _rewardAmount;
+            stakeEnded[_beneficiary] = (block.timestamp).add(THIRTYsIX_MONTHS_DURATION);
             
-        // } 
-        // else if (_period == THIRTYsIX_MONTHS_DURATION) {
-        //     _rewardAmount = (thirtySixMonthRewardPercent * __userAmount) / 1e20;
-        //     rewards[_beneficiary] = _rewardAmount;
-        //     stakeEnded[_beneficiary] = (block.timestamp).add(THIRTYsIX_MONTHS_DURATION);
-            
-        // } 
-        // else {
-        //     revert("Error: duration not allowed!");
-        // }
+        } 
+        else {
+            revert("Error: duration not allowed!");
+        }
 
         emit Staked(_beneficiary, _amount, _rewardAmount);
     }
@@ -760,20 +752,16 @@ contract Staking is StakingTokenWrapper, RewardsDistributionRecipient {
     }
     
     function withdrawRewardTokens(address receiver, uint256 _amount) 
-        internal
+        public onlyRewardsDistributor
     {
         require(rewardsToken.transfer(receiver, _amount), "Not enough tokens on contract!");
     }
     
     function withdrawStakeTokens(address receiver, uint256 _amount) 
-        internal 
+        public onlyRewardsDistributor
         
     {
         require(stakingToken.transfer(receiver, _amount), "Not enough tokens on contract!");
-    }
-    
-    function withdrawOwner() public onlyOwner(){
-        _withdraw(ownerbalance);
     }
 }
 
