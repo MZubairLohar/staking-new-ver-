@@ -1,8 +1,7 @@
+
 // SPDX-License-Identifier: UNLICENSED
 
-
 pragma solidity ^0.6.12;
-
 interface IERC20 {
 
     function totalSupply() external view returns (uint256);
@@ -73,6 +72,60 @@ library SafeMath {
     function mod(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
         require(b != 0, errorMessage);
         return a % b;
+    }
+}
+library SafeERC20 {
+    using SafeMath for uint256;
+    using Address for address;
+
+    function safeTransfer(IERC20 token, address to, uint256 value) internal {
+        callOptionalReturn(token, abi.encodeWithSelector(token.transfer.selector, to, value));
+    }
+
+    function safeTransferFrom(IERC20 token, address from, address to, uint256 value) internal {
+        callOptionalReturn(token, abi.encodeWithSelector(token.transferFrom.selector, from, to, value));
+    }
+
+    function safeApprove(IERC20 token, address spender, uint256 value) internal {
+        // safeApprove should only be called when setting an initial allowance,
+        // or when resetting it to zero. To increase and decrease it, use
+        // 'safeIncreaseAllowance' and 'safeDecreaseAllowance'
+        // solhint-disable-next-line max-line-length
+        require((value == 0) || (token.allowance(address(this), spender) == 0),
+            "SafeERC20: approve from non-zero to non-zero allowance"
+        );
+        callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, value));
+    }
+
+    function safeIncreaseAllowance(IERC20 token, address spender, uint256 value) internal {
+        uint256 newAllowance = token.allowance(address(this), spender).add(value);
+        callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, newAllowance));
+    }
+
+    function safeDecreaseAllowance(IERC20 token, address spender, uint256 value) internal {
+        uint256 newAllowance = token.allowance(address(this), spender).sub(value, "SafeERC20: decreased allowance below zero");
+        callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, newAllowance));
+    }
+
+    function callOptionalReturn(IERC20 token, bytes memory data) private {
+        // We need to perform a low level call here, to bypass Solidity's return data size checking mechanism, since
+        // we're implementing it ourselves.
+
+        // A Solidity high level call has three parts:
+        //  1. The target address is checked to verify it contains contract code
+        //  2. The call itself is made, and success asserted
+        //  3. The return value is decoded, which in turn checks the size of the returned data.
+        // solhint-disable-next-line max-line-length
+        require(address(token).isContract(), "SafeERC20: call to non-contract");
+
+        // solhint-disable-next-line avoid-low-level-calls
+        (bool success, bytes memory returndata) = address(token).call(data);
+        require(success, "SafeERC20: low-level call failed");
+
+        if (returndata.length > 0) { // Return data is optional
+            // solhint-disable-next-line max-line-length
+            require(abi.decode(returndata, (bool)), "SafeERC20: ERC20 operation did not succeed");
+        }
     }
 }
 library Address {
@@ -164,60 +217,6 @@ library Address {
             } else {
                 revert(errorMessage);
             }
-        }
-    }
-}
-library SafeERC20 {
-    using SafeMath for uint256;
-    using Address for address;
-
-    function safeTransfer(IERC20 token, address to, uint256 value) internal {
-        callOptionalReturn(token, abi.encodeWithSelector(token.transfer.selector, to, value));
-    }
-
-    function safeTransferFrom(IERC20 token, address from, address to, uint256 value) internal {
-        callOptionalReturn(token, abi.encodeWithSelector(token.transferFrom.selector, from, to, value));
-    }
-
-    function safeApprove(IERC20 token, address spender, uint256 value) internal {
-        // safeApprove should only be called when setting an initial allowance,
-        // or when resetting it to zero. To increase and decrease it, use
-        // 'safeIncreaseAllowance' and 'safeDecreaseAllowance'
-        // solhint-disable-next-line max-line-length
-        require((value == 0) || (token.allowance(address(this), spender) == 0),
-            "SafeERC20: approve from non-zero to non-zero allowance"
-        );
-        callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, value));
-    }
-
-    function safeIncreaseAllowance(IERC20 token, address spender, uint256 value) internal {
-        uint256 newAllowance = token.allowance(address(this), spender).add(value);
-        callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, newAllowance));
-    }
-
-    function safeDecreaseAllowance(IERC20 token, address spender, uint256 value) internal {
-        uint256 newAllowance = token.allowance(address(this), spender).sub(value, "SafeERC20: decreased allowance below zero");
-        callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, newAllowance));
-    }
-
-    function callOptionalReturn(IERC20 token, bytes memory data) private {
-        // We need to perform a low level call here, to bypass Solidity's return data size checking mechanism, since
-        // we're implementing it ourselves.
-
-        // A Solidity high level call has three parts:
-        //  1. The target address is checked to verify it contains contract code
-        //  2. The call itself is made, and success asserted
-        //  3. The return value is decoded, which in turn checks the size of the returned data.
-        // solhint-disable-next-line max-line-length
-        require(address(token).isContract(), "SafeERC20: call to non-contract");
-
-        // solhint-disable-next-line avoid-low-level-calls
-        (bool success, bytes memory returndata) = address(token).call(data);
-        require(success, "SafeERC20: low-level call failed");
-
-        if (returndata.length > 0) { // Return data is optional
-            // solhint-disable-next-line max-line-length
-            require(abi.decode(returndata, (bool)), "SafeERC20: ERC20 operation did not succeed");
         }
     }
 }
@@ -444,18 +443,18 @@ library StableMath {
         return x > upperBound ? upperBound : x;
     }
 }
-contract Staking is StakingTokenWrapper, RewardsDistributionRecipient {
 
-    using StableMath for uint256;
-    using Address for address;
+contract StakeVTwo is StakingTokenWrapper, RewardsDistributionRecipient{
 
+ // ***************************************************   
+ // ****************** State Variables ****************    
+ // ***************************************************      
+    address owner;
     IERC20 public rewardsToken;
-
-    // uint256 public constant ONE_DAY = 86400; // in seconds
-    uint256 internal constant ONE_DAY = 60; // 1 mins in seconds
+    uint256 constant internal ONE_DAY  = 86400 ;
+    uint256 minStakeAmount = 1 * 10e18 ;
     
-    uint256 public minStakingAmount = 1 * 1e18;
-    
+    //     ************ percentages ***********
     uint256 internal FlaxableRewardPercent  = 3 * 1e18;  // 3%
     uint256 internal threeMonthRewardPercent  = 6 * 1e18;  // 6%
     uint256 internal sixMonthRewardPercent    = 7 * 1e18;  // 7%
@@ -464,77 +463,57 @@ contract Staking is StakingTokenWrapper, RewardsDistributionRecipient {
     uint256 internal twentyFourMonthRewardPercent = 12 * 1e18;   // 12%
     uint256 internal thirtySixMonthRewardPercent = 15 * 1e18;   // 15%
     uint256 internal FeePercent = 1 * 1e18; // 1%
-    
-    
-    // percentage calculation
-    string public FlaxableReward  = "3%";
-    string public threeMonthReward  = "6%";
-    string public sixMonthReward    =  "7%";
-    string public nineMonthReward    = "8%";
-    string public twelveMonthReward =  "9%";
-    string public twentyFourMonthReward = "12%";
-    string public thirtySixMonthReward = "15%";
-    string public FeeDeduction =  "1%";
-
-
     uint256 internal rewardPercent = 1; // 1%
     
-    // Timestamps of staking duration
-    
-    uint256 public constant FLEXABLE_MONTHS_DURATION   = 5 days;
-    uint256 public constant THREE_MONTHS_DURATION   = 90 days;
+    //****************** DAYS ********************
+    uint256 public constant FLEXABLE_MONTHS_DURATION   = 1 minutes;
+    uint256 public constant THREE_MONTHS_DURATION   = 2 minutes;
     uint256 public constant SIX_MONTHS_DURATION     = 180 days;
     uint256 public constant NINE_MONTHS_DURATION     = 270 days;
     uint256 public constant TWELVE_MONTHS_DURATION  = 360 days;
     uint256 public constant TWENTYfOUR_MONTHS_DURATION  = 720 days;
     uint256 public constant THIRTYsIX_MONTHS_DURATION  = 1080 days;
-    
     uint256 internal stakingDuration = 0;
+    address[] internal stakerKey;
+    uint256[] internal stakerTime;
+    uint256[] internal _Rewards;
+    uint256[] internal _StakeAmount;
     
-    //owner 
-    address owner ;
-    
-    // Amount the user has staked
-    mapping(address => uint256) public userStakedTokens;
-    // Reward the user will get after staking period ends
-    mapping(address => uint256) public rewards;
-    // Rewards paid to user
-    mapping(address => uint256) public userRewardsPaid;
-    // Stake starting timestamp
-    mapping(address => uint256) public stakeStarted;
-    // Stake ending timestamp
-    mapping(address => uint256) public stakeEnded;
-    
-    
-    
+
+
+// ********************************************    
+// *************** EVENTS ********************
+// ********************************************
+  
 
     event Staked(address indexed user, uint256 amount, uint256 reward);
     event Withdrawn(address indexed user, uint256 amount);
     event RewardPaid(address indexed user, uint256 reward);
-
-    /***************************************
-                    CONSTRUCTOR
-    ****************************************/
-
-    constructor (
+    
+    
+// ********************************************    
+// *************** CONSTRUCTOR ********************
+// ********************************************
+ 
+ constructor( 
         address _stakingToken,
         address _rewardsToken,
         address _rewardsDistributor
-    )
-        public
-        StakingTokenWrapper(_stakingToken)
+        ) public
+         StakingTokenWrapper(_stakingToken)
         RewardsDistributionRecipient(_rewardsDistributor)
-       
-    {
-        rewardsToken = IERC20(_rewardsToken);
+        {
+         rewardsToken = IERC20(_rewardsToken);
          owner = _rewardsDistributor;
-    }
-    
-    /***************************************
-                    MODIFIERS
-    ****************************************/
-
-    modifier isAccount(address _account) {
+  }
+        
+ // ********************************************    
+// *************** MODIFIERS ********************
+// ********************************************
+ 
+ 
+ 
+  modifier isAccount(address _account) {
         require(!Address.isContract(_account), "Only external owned accounts allowed");
         _;
     }
@@ -542,10 +521,37 @@ contract Staking is StakingTokenWrapper, RewardsDistributionRecipient {
         require(msg.sender == owner);
         _;
     }
+
+
+// ********************************************    
+// *************** STRUCTS ********************
+// ********************************************
     
-    /***************************************
-                    ACTIONS
-    ****************************************/
+struct Staker {
+    uint256 userStakedTokens;
+    uint256 rewards;
+    uint256 stakeStarted;
+    uint256 stakeEnded;
+}
+
+// ********************************************    
+// *************** MAPPING ********************
+// ********************************************
+
+  mapping (address => mapping(uint256 => Staker)) public stakerInfo;
+  
+  mapping(address => mapping(uint256 => uint256)) public userRewardsPaid;
+
+// ********************************************    
+// *************** ACTIONS ********************
+// ********************************************
+     
+     
+      function flexable(uint256 _amount)
+        external payable
+    {
+        __stake(msg.sender, _amount, FLEXABLE_MONTHS_DURATION);
+    }
     
     function stake3m(uint256 _amount)
         external
@@ -583,27 +589,12 @@ contract Staking is StakingTokenWrapper, RewardsDistributionRecipient {
         __stake(msg.sender, _amount, THIRTYsIX_MONTHS_DURATION);
     }
     
-    
-    function unstake() 
-        external 
-    {
-        require(block.timestamp >= stakeEnded[msg.sender], "Reward cannot be claimed before time");
-        
-        withdraw(balanceOf(msg.sender));
-        claimReward();
-        
-       
-        stakeStarted[msg.sender] = 0;
-        stakeEnded[msg.sender] = 0;
-    }
-    
-
-    function __stake(address _beneficiary, uint256 _addAmount, uint256 _period)
+     function __stake(address _beneficiary, uint256 _addAmount, uint256 _period)
         internal
         isAccount(_beneficiary)
     {
         require(
-            _addAmount >= minStakingAmount, 
+            _addAmount >= minStakeAmount, 
             "Invalid staking amount"
         );
         require(
@@ -627,94 +618,138 @@ contract Staking is StakingTokenWrapper, RewardsDistributionRecipient {
         
         
         super._stake(_beneficiary, _amount);
-        stakeStarted[_beneficiary] = block.timestamp;
+        uint timeStarted = block.timestamp;
         
-        userStakedTokens[_beneficiary] = userStakedTokens[_beneficiary].add(_amount);
-        uint256 __userAmount = userStakedTokens[_beneficiary];
+        
+        //userStakedTokens[_beneficiary] = userStakedTokens[_beneficiary].add(_amount);
+        //uint256 __userAmount = Staker[_beneficiary][_period].userStakedTokens.add(_amount);
         
         // calculation is on the basis:
         // reward = (monthPercentageInWei * stakedAmountInWei) / 1e20
         // e.g: (2.5% * 1e18  *  100 * 1e18) / 1e20 = 2.5 * 1e18
+        
         uint256 _rewardAmount;
-       
+        
        if (_period == FLEXABLE_MONTHS_DURATION) {
-            _rewardAmount = (FlaxableRewardPercent * __userAmount) / 1e20;
-            rewards[_beneficiary] = _rewardAmount;
-            stakeEnded[_beneficiary] = (block.timestamp).add(FLEXABLE_MONTHS_DURATION);
-        } 
+            _rewardAmount = (FlaxableRewardPercent * _amount) / 1e20;
+            uint256 _stakeEnded = (block.timestamp).add(FLEXABLE_MONTHS_DURATION);
+            // stakerKey.push(_beneficiary);
+            // stakerTime.push(_period);
+            stakerInfo[_beneficiary][_period] = (Staker(_amount, _rewardAmount, timeStarted, _stakeEnded ));
+            stakerKey.push(_beneficiary);
+            } 
+       else if (_period == THREE_MONTHS_DURATION) {
+            _rewardAmount = (threeMonthRewardPercent * _amount) / 1e20;
+            uint256 _stakeEnded = (block.timestamp).add(FLEXABLE_MONTHS_DURATION);
+            // stakerKey.push(_beneficiary);
+            // stakerTime.push(_period);
+            stakerInfo[_beneficiary][_period]=(Staker(_amount, _rewardAmount, timeStarted, _stakeEnded ));
+            stakerKey.push(_beneficiary);
+            } 
         else if (_period == THREE_MONTHS_DURATION) {
-            _rewardAmount = (threeMonthRewardPercent * __userAmount) / 1e20;
-            rewards[_beneficiary] = _rewardAmount;
-            stakeEnded[_beneficiary] = (block.timestamp).add(THREE_MONTHS_DURATION);
-        }
-       
-        else if (_period == THREE_MONTHS_DURATION) {
-            _rewardAmount = (threeMonthRewardPercent * __userAmount) / 1e20;
-            rewards[_beneficiary] = _rewardAmount;
-            stakeEnded[_beneficiary] = (block.timestamp).add(THREE_MONTHS_DURATION);
-        } 
+            _rewardAmount = (threeMonthRewardPercent * _amount) / 1e20;
+            uint256 _stakeEnded = (block.timestamp).add(FLEXABLE_MONTHS_DURATION);
+            // stakerKey.push(_beneficiary);
+            // stakerTime.push(_period);
+            stakerInfo[_beneficiary][_period]=(Staker(_amount, _rewardAmount, timeStarted, _stakeEnded ));
+            stakerKey.push(_beneficiary);
+            }   
         else if (_period == SIX_MONTHS_DURATION) {
-            _rewardAmount = (sixMonthRewardPercent * __userAmount) / 1e20;
-            rewards[_beneficiary] = _rewardAmount;
-            stakeEnded[_beneficiary] = (block.timestamp).add(SIX_MONTHS_DURATION);
-        } 
+            _rewardAmount = (sixMonthRewardPercent * _amount) / 1e20;
+            uint256 _stakeEnded = (block.timestamp).add(FLEXABLE_MONTHS_DURATION);
+            // stakerKey.push(_beneficiary);
+            // stakerTime.push(_period);
+            stakerInfo[_beneficiary][_period]=(Staker(_amount, _rewardAmount, timeStarted, _stakeEnded ));
+            stakerKey.push(_beneficiary);
+            }   
         else if (_period == NINE_MONTHS_DURATION) {
-            _rewardAmount = (nineMonthRewardPercent * __userAmount) / 1e20;
-            rewards[_beneficiary] = _rewardAmount;
-            stakeEnded[_beneficiary] = (block.timestamp).add(NINE_MONTHS_DURATION);    
-        } 
-        else if (_period == TWELVE_MONTHS_DURATION) {
-            _rewardAmount = (twelveMonthRewardPercent * __userAmount) / 1e20;
-            rewards[_beneficiary] = _rewardAmount;
-            stakeEnded[_beneficiary] = (block.timestamp).add(TWELVE_MONTHS_DURATION);
-            
-        } 
-        else if (_period == THIRTYsIX_MONTHS_DURATION) {
-            _rewardAmount = (thirtySixMonthRewardPercent * __userAmount) / 1e20;
-            rewards[_beneficiary] = _rewardAmount;
-            stakeEnded[_beneficiary] = (block.timestamp).add(THIRTYsIX_MONTHS_DURATION);
-            
-        } 
-        else {
+            _rewardAmount = (sixMonthRewardPercent * _amount) / 1e20;
+            uint256 _stakeEnded = (block.timestamp).add(FLEXABLE_MONTHS_DURATION);
+            // stakerKey.push(_beneficiary);
+            // stakerTime.push(_period);
+            stakerInfo[_beneficiary][_period]=(Staker(_amount, _rewardAmount, timeStarted, _stakeEnded ));
+            stakerKey.push(_beneficiary);
+            }   
+         else if (_period == TWELVE_MONTHS_DURATION) {
+            _rewardAmount = (twelveMonthRewardPercent * _amount) / 1e20;
+            uint256 _stakeEnded = (block.timestamp).add(FLEXABLE_MONTHS_DURATION);
+            // stakerKey.push(_beneficiary);
+            // stakerTime.push(_period);
+            stakerInfo[_beneficiary][_period]=(Staker(_amount, _rewardAmount, timeStarted, _stakeEnded ));
+            stakerKey.push(_beneficiary);
+            }   
+         else if (_period == THIRTYsIX_MONTHS_DURATION) {
+            _rewardAmount = (thirtySixMonthRewardPercent * _amount) / 1e20;
+            uint256 _stakeEnded = (block.timestamp).add(FLEXABLE_MONTHS_DURATION);
+            // stakerKey.push(_beneficiary);
+            // stakerTime.push(_period);
+            stakerInfo[_beneficiary][_period]=(Staker(_amount, _rewardAmount, timeStarted, _stakeEnded ));
+            stakerKey.push(_beneficiary);
+            }   
+      
+         else {
             revert("Error: duration not allowed!");
         }
 
-        emit Staked(_beneficiary, _amount, _rewardAmount);
-    }
+         emit Staked(_beneficiary, _amount, _rewardAmount);
+    
+}
 
-    function withdraw(uint256 _amount)
+
+
+
+
+    function unstake( uint256 _time) external{
+         Staker memory stake = stakerInfo[msg.sender][_time];
+         require(block.timestamp >= stake.stakeEnded);
+         withdraw(stake.userStakedTokens, _time);
+         claimReward(_time);
+         stake.stakeStarted = 0;
+         stake.stakeEnded = 0;
+         stake.userStakedTokens = 0 ;
+         stake.rewards = 0 ;
+         
+    }
+    
+     function withdraw(uint256 _amount, uint256 _time)
         internal
         isAccount(msg.sender)
     {
         require(_amount > 0, "Cannot withdraw 0");
-        require(block.timestamp >= stakeEnded[msg.sender], "Reward cannot be claimed before staking ends");
-        userStakedTokens[msg.sender] = userStakedTokens[msg.sender].sub(_amount);
+        require(
+            block.timestamp >= stakerInfo[msg.sender][_time].stakeEnded, 
+            "Reward cannot be claimed before staking ends"
+        );
+        // stakerInfo[msg.sender][_time].userStakedTokens = stakerInfo[msg.sender][_time].userStakedTokens.sub(_amount) ;
+        
         _withdraw(_amount);
         emit Withdrawn(msg.sender, _amount);
     }
 
-    function claimReward()
+    function claimReward(uint256 _time)
         internal
         isAccount(msg.sender)
     {
-        require(block.timestamp >= stakeEnded[msg.sender], "Reward cannot be claimed before staking ends");
-        uint256 reward = rewards[msg.sender];
+        require(block.timestamp >= stakerInfo[msg.sender][_time].stakeEnded, "Reward cannot be claimed before staking ends");
+        uint256 reward = stakerInfo[msg.sender][_time].rewards;
+        
         if (reward > 0) {
-            rewards[msg.sender] = 0;
+            stakerInfo[msg.sender][_time].rewards = 0;
             rewardsToken.transfer(msg.sender, reward);
-            userRewardsPaid[msg.sender] = userRewardsPaid[msg.sender].add(reward);
+            userRewardsPaid[msg.sender][_time] = userRewardsPaid[msg.sender][_time].add(reward);
             emit RewardPaid(msg.sender, reward);
         }
     }
+    
+
+// ********************************************    
+// *************** GETS ********************
+// ********************************************
+     
+     
 
 
-    /***************************************
-                    GETTERS
-    ****************************************/
-   
-
-
-    function getRewardToken()
+ function getRewardToken()
         external
         override
         view
@@ -723,27 +758,31 @@ contract Staking is StakingTokenWrapper, RewardsDistributionRecipient {
         return rewardsToken;
     }
 
-    function earned(address _account)
+    function earned(address _account, uint256 _period)
         public
         view
         returns (uint256)
     {
-        return rewards[_account];
+     return stakerInfo[_account][_period].rewards;
+  
     }
+    
+    
 
-    function tokensStaked(address _account)
+    function tokensStaked(address _account, uint256 _period)
         public
         view
         returns (uint256)
     {
-        return userStakedTokens[_account];
+       return stakerInfo[_account][_period].userStakedTokens;
     }
 
-
-    /***************************************
-                    ADMIN
-    ****************************************/
-
+ 
+ // ********************************************    
+// *************** ADMIN ********************
+// ********************************************
+     
+    
     function sendRewardTokens(uint256 _amount) 
         public 
         onlyRewardsDistributor 
@@ -763,7 +802,5 @@ contract Staking is StakingTokenWrapper, RewardsDistributionRecipient {
     {
         require(stakingToken.transfer(receiver, _amount), "Not enough tokens on contract!");
     }
+    
 }
-
-
-
